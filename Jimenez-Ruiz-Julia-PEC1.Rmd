@@ -1,0 +1,211 @@
+---
+title: "Jimenez-Ruiz-Julia-PEC1"
+author: "Julia Jiménez"
+date: "2024-11-02"
+output: word_document
+toc: true
+number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Instalamos los paquetes que podamos utilizar
+
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+```
+
+```{r}
+if(!require(Biobase))biocLite("Biobase")
+```
+
+Elegimos el directorio de trabajo
+
+```{r}
+setwd("C:/Users/julia/Desktop/Master UOC/Analisis de datos omicos/2024-2025")
+dir_cach<-"C:/Users/julia/Desktop/Master UOC/Analisis de datos omicos/2024-2025"
+dir(path = dir_cach)
+```
+
+Cargamos los datos
+
+```{r}
+data_cach<-read.csv("human_cachexia.csv",header=TRUE, sep =",")
+head(data_cach)
+```
+
+Empezamos con la exploración de datos, vemos qué tipo de datos tiene nuestro dataset
+```{r}
+str(data_cach)
+```
+
+La variable de Muscle.loss es la que nos indica si hay diagnóstico de Cachexia o no. Es de tipo carácter y lo necesitamos como factor, lo convertimos.
+
+```{r}
+data_cach$Muscle.loss<-as.factor(data_cach$Muscle.loss)
+str(data_cach)
+```
+
+De las 65 variables la única que considero que sobra del dataset el Patient ID y el diagnóstico del paciente. Eliminamos las variables del dataset con el que vamos a analizar las componentes principales.
+
+```{r}
+cach_Num<-data_cach[,3:65]
+```
+
+Se comprueba que el dataset está bien.
+
+```{r}
+str(cach_Num)
+```
+
+Y se continúa con el análisis preliminar de los datos.
+
+```{r}
+summary(cach_Num)
+```
+
+Representamos gráficamente los datos mediante histogramas. Debido al volumen de datos su visualización es difícil.
+
+```{r}
+f<- function(x){
+  ifelse (is.numeric(x), 
+          hist(x, breaks=5),
+          barplot(table(x))
+  )
+}
+par(mar=c(1,1,1,1))
+apply(data_cach,2,f)
+```
+
+En este caso la escala de variables es heterogénea, pero los datos son del mismo tipo (magnitudes biométricas) por lo que continuaremos nuestro análisis en la matriz de covarianzas de los datos centrados.
+
+```{r}
+cach_Num<-scale(cach_Num, center=TRUE, scale=FALSE)
+apply(cach_Num,2,mean)
+```
+
+Calculamos la matriz de varianzas ajustando al dividir por n.
+
+```{r}
+n<-dim(data_cach)[1]
+S<-cov(cach_Num)*(n-1)/n
+show(S)
+```
+
+Calculamos la matriz de correlaciones
+
+```{r}
+R<-cor(cach_Num)
+show(R)
+```
+
+Con la cantidad de variables y combinaciones posibles, resulta imposible discernir cuáles son las más relevantes. Pasamos ahora a calcular la componantes principales. En este caso he escogido la función princomp al ser la más elegante, siendo consciente que otras formas de cálculo pueden resultar en pequeñas diferencias en los resultados.
+
+```{r}
+PCAS2<-princomp(cach_Num)
+names(PCAS2)
+```
+
+```{r}
+PCAS3<-prcomp(cach_Num)
+names(PCAS3)
+```
+
+Algunas variables coinciden y otras no, esas habrá que ajustarlas. El argumento sdev contiene las desviaciones estándard, es decir, las raíces cuadradas de los valores propios.
+
+El argumentos loadings contiene los vectores propios en el objeto calculado por princomp
+
+En el caso de prcomp están en el objeto rotation
+
+```{r}
+PCAS2$sdev
+```
+
+```{r}
+PCAS3$sdev
+```
+
+El argumento scores continee las componenetes principales calculadas por princomp. En el casod e prcomp se encuentran en el campo x. Para hacerlas comparables centraremos las componentes.
+
+```{r}
+head(PCAS2$scores)
+```
+
+```{r}
+head(PCAS3$x)
+```
+
+```{r}
+PCAS2$loadings
+```
+
+
+```{r}
+PCAS3$rotation[,1]
+```
+
+Una vez con los datos pre procesado y filtrados.
+## Agrupación de genes y de muestras en el análisis del ciclo celular
+
+Lo primero es que vamos a comprobar que los datos están normalizados, mediante boxplots y comprobaremos que los datos presentan una distribución simular y centrada en el cero como sería esperado en valores de expresión relativa normalizados.
+
+```{r}
+boxplot(cach_Num, las=2, cex.axis=0.7)
+```
+
+```{r}
+percentage <- c(0.975)
+sds <- apply(cach_Num, MARGIN=1, FUN="sd")
+sel <- (sds>quantile(sds,percentage))
+cach.sel <- cach_Num[sel, ]
+dim(cach.sel)
+```
+## Agrupación jerárquica de las muestras
+```{r}
+distmeth<- c("euclidian")
+Distan<-dist(t(cach.sel), method = distmeth)
+treemeth<-c("average")
+hc<-hclust(Distan,method=treemeth)
+par(cex=0.7)
+plot(as.dendrogram(hc))
+rect.hclust(hc,k=3)
+```
+
+```{r}
+save(cach_Num,file='cachexia_num_data.rda')
+```
+
+
+```{r}
+cach_meta<-data_cach[,1:2]
+str(cach_meta)
+```
+
+```{r}
+save(cach_meta,file='cachexia_meta_data.rda')
+```
+
+```{r}
+save(cach_Num,file='cachexia_num_data.csv')
+```
+
+```{r}
+save(cach_meta,file='cachexia_meta_data.Rmd')
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
